@@ -43,6 +43,17 @@ static_assert(sizeof(ThreadLocalPackedVariables) == sizeof(uint64_t),
 
 #ifdef GWP_ASAN_PLATFORM_TLS_HEADER
 #include GWP_ASAN_PLATFORM_TLS_HEADER
+#elif defined(__BIONIC__)
+// PICO (Android 10 libc): as in the factory PICO OS 5.13.7 libc, where
+// gwp_asan::GuardedPoolAllocator::ThreadLocals is a plain process-wide object
+// (STT_OBJECT in .bss, read through the GOT), the sample counter and the
+// recursion guard are shared by all threads instead of living in ELF TLS.
+namespace gwp_asan {
+inline ThreadLocalPackedVariables *getThreadLocals() {
+  alignas(8) static ThreadLocalPackedVariables Locals;
+  return &Locals;
+}
+} // namespace gwp_asan
 #else
 namespace gwp_asan {
 inline ThreadLocalPackedVariables *getThreadLocals() {
